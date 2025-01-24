@@ -66,7 +66,22 @@ Function Invoke-UserDisable {
     Move-ADObject -Identity $user.DistinguishedName -TargetPath $DISABLED_OU
 }
 
-$username = Read-UsernameInput
-$user = Get-TargetADUser -username $username
+Function Start-DisableProcess {
+    $username = Read-UsernameInput
+    if ($null -eq $username) {
+        Write-Host "Could not read username." -ForegroundColor Red
+        return
+    }
+    
+    $user = Get-TargetADUser -username $username
+    if ($null -eq $user) {
+        Write-Host "Could not find AD User." -ForegroundColor RED
+        return
+    }
+    
+    Invoke-GroupRemoval -user $user
+}
 
-Invoke-GroupRemoval -user $user
+Start-DisableProcess
+
+
