@@ -1,3 +1,29 @@
+<#
+.SYNOPSIS
+This script disables an Active Directory user account by removing it from all non-ignored AD groups and moving it to a designated "Disabled" Organizational Unit (OU).
+
+.DESCRIPTION
+The script performs the following actions:
+1. Prompts the administrator to input a username.
+2. Searches Active Directory for the specified username.
+3. Retrieves all AD groups the user is a member of.
+4. Removes the user from all groups, except those specified in the `$IGNORED_AD_GROUP` array (e.g., "Domain Users").
+5. Disables the user's account in Active Directory.
+6. Moves the disabled user account to a predefined "Disabled" OU (`$DISABLED_OU`).
+
+.PARAMETER $DISABLED_OU
+Specifies the Distinguished Name (DN) of the OU where disabled users will be moved. Must be set prior to running the script.
+
+.PARAMETER $IGNORED_AD_GROUP
+Defines a list of AD groups that the user will not be removed from during the group removal process.
+- Default is Domain Users.
+
+.NOTES
+- This script requires the Active Directory PowerShell module to be installed and imported.
+- Ensure the script is executed with appropriate permissions to manage AD user accounts and groups.
+- The `$DISABLED_OU` variable must be set with the target OU's DN for the script to work correctly.
+#>
+
 $DISABLED_OU = ""
 $IGNORED_AD_GROUP = @("Domain Users")
 
