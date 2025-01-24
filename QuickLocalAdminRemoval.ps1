@@ -110,6 +110,12 @@ Function Start-RemovalProcess {
     
     Write-Host "Invoking Local Admin Removal Process..."
     Invoke-LocalAdminRemoval -session $session -ignoredAdmins $IGNORED_ADMINISTRATORS
+
+    # Check if session is still open, if so -> close it
+    if ($session -and $session.State -eq 'Opened') {
+        Write-Host "Exiting and removing PS-Session." -ForegroundColor Yellow
+        Remove-PSSession -Session $session
+    }
 }
 
 Start-RemovalProcess
