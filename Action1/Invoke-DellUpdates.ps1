@@ -1,51 +1,55 @@
-# Original credits to Joe W. from Noventech. Changed some things around for deployment with Action1.
+$SUCCESS = 0
+$FAILURE = 1
 
-Function Invoke-DellUpdates {
-    Write-Host -ForegroundColor Yellow "Starting Dell Command Update Check"
+Write-Host "Starting Dell Command Update Check"
 
-    try {
-        $computerSystem = Get-WmiObject Win32_ComputerSystem
-        if ($computerSystem.Manufacturer -notlike "*Dell*") {
-            Write-Host -ForegroundColor Red "Computer is not a Dell system. Exiting."
-            return -1
-        }
-
-        $dcuPath = "${env:ProgramFiles}\Dell\CommandUpdate\dcu-cli.exe" # Find Dell Command Update CLI
-        if (-Not (Test-Path -Path $dcuPath)) {
-            Write-Host -ForegroundColor Red "Computer does not have Dell Command Update installed."
-            return -1
-        }
-
-        $dellLogPath = "C:\Dell\Logs"
-        if (-Not (Test-Path -Path $dellLogPath)) {
-            New-Item -ItemType Directory -Path $dellLogPath -Force | Out-Null
-            Write-Host -ForegroundColor Cyan "Created dell logs directory: $dellLogPath"
-        }
-        
-        Write-Host -ForegroundColor Yellow "Attempting to configure DCU CLI."
-    
-        $process = Start-Process -FilePath $dcuPath -ArgumentList "/scan -outputLog=$dellLogPath\dcu-cli.log" -Wait -PassThru
-    
-        if ($process.ExitCode -ne 0) {
-            Write-Host -ForegroundColor Red "Scan failed to complete."
-            return -1
-        }
-    
-        $updateProcess = Start-Process -FilePath $dcuPath -ArgumentList "/applyupdates -outputLog=$dellLogPath\dcu-cli.log" -Wait -PassThru
-        if ($updateProcess.ExitCode -eq 0) {
-            Write-Host -Foreground Green "Dell Command Update Completed."
-            return 0
-        } elseif ($updateProcess.ExitCode -eq 5) {
-            Write-Host -ForegroundColor Yellow "No dell updates available."
-            return 0
-        } else {
-            Write-Host -ForegroundColor Red "Dell update failed."
-            return -1
-        }
-    } catch {
-        Write-Host "Error running dell update: $_"
-        return -1
+try {
+    $computerSystem = Get-WmiObject Win32_ComputerSystem
+    if ($computerSystem.Manufacturer -notlike "*Dell*") {
+        Write-Error "Computer is not a Dell System. Exiting."
+        exit $FAILURE
     }
-}
 
-Invoke-DellUpdates
+    $dcuPath = "${env:ProgramFiles}\Dell\CommandUpdate\dcu-cli.exe"
+    if (-Not (Test-Path -Path $dcuPath)) {
+        Write-Error "Computer does not have Dell Command Update installed. Exiting."
+        exit $FAILURE
+    }
+
+    $dellLogsPath = "C:\Dell\Logs"
+    if (-Not (Test-Path -Path $dellLogsPath)) {
+        Write-Host "Creating Dell Logs Directory: $dellsLogPath"
+        New-Item -ItemType Directory -Path $dellLogsPath -Force | Out-Null
+    }
+
+    Write-Host "Configuring Dell Command Update..."
+    $process = Start-Process -FilePath $dcuPath -ArgumentList "/configure -silent -autoSuspendBitLocker=enable -userConsent=disable" -Wait -PassThru
+    if ($process.ExitCode -ne 0) {
+        Write-Error "Failed to configure DEll Command Update (Exit Code: $($process.ExitCode))"
+        exit $FAILURE
+    }
+
+    Write-Host "Running Dell Command Update Scan"
+    $process = Start-Process -FilePath $dcuPath -ArgumentList "/scan -outputLog=$dellsLogPath\scan.log" -Wait -PassThru
+    if ($process.ExitCode -ne 0) {
+        Write-Error "Dell Command Update Scan Failed."
+        exit $FAILURE
+    }
+
+    Write-Host "Dell Command Update Scan Completed. Applying updates."
+    $process = Start-Process -FilePath $dcuPath -ArgumentList "/applyupdates -outputLog=$dellLogsPath\updates.log" -Wait -PassThru
+    if ($process.ExitCode -eq 0) {
+        Write-Host "Dell Updates Applied Successfully."
+        exit $SUCCESS
+    } elseif ($process.ExitCode -eq 5) {
+        Write-Host "No Dell Updates Available."
+        exit $SUCCESS
+    } else {
+        Write-Host "Dell Command Update Completed with Exit Code: $($process.ExitCode)"
+        exit $FAILURE
+    }
+
+} catch {
+    Write-Host "Error Running DDell updates: $_"
+    return $FAILURE
+}
